@@ -39,37 +39,52 @@
             for (let row = 0; row < 3; row++) {
                 var cell = document.createElement("div");
                 cell.classList.add("icon");
-                cell.addEventListener("click", () => play(boardArray, column, row))
-                boardArray[column][row] === 1 ? cell.classList.add("cross")
-                 : boardArray[column][row] === 2 ? cell.classList.add("ring") : undefined;
+                cell.addEventListener("click", () => play(boardArray, column * 3 + row))
+                boardArray[column * 3 + row] === 1 ? cell.classList.add("cross")
+                 : boardArray[column * 3 + row] === 2 ? cell.classList.add("ring") : undefined;
                 board.appendChild(cell);
             }
             board.appendChild(document.createElement("br"));
         }
     }
 
-    function play (boardArray, column, row) {
-        if (boardArray[column][row]) {
+    function play (boardArray, index) {
+        if (boardArray[index]) {
             return;
         }
-        boardArray[column][row] = nowPicker;
-        if (checkWin(boardArray)) {
+        boardArray[index] = nowPicker;
+        if (checkWin(boardArray, nowPicker)) {
             alert("the winner is: " + (nowPicker === 1 ? "x" : "o"));
         }
         nowPicker = 3 - nowPicker;
+        // console.log(findBestWay(boardArray, nowPicker));
         if (checkWillWin(boardArray, nowPicker)) {
             console.log((nowPicker === 1 ? "x" : "o") + " will Win");
         }
         show();
+        computerPlay();
     }
 
-    function checkWin (boardArray) {
+    function computerPlay() {
+        let result = findBestWay(boardArray, nowPicker);
+        console.log(result);
+        if (result.point) {
+            boardArray[result.point] = nowPicker;
+        }
+        if (checkWin(boardArray, nowPicker)) {
+            alert("the winner is: " + (nowPicker === 1 ? "x" : "o"));
+        }
+        show();
+        nowPicker = 3 - nowPicker;
+    }
+
+    function checkWin (boardArray, nowPicker) {
         {
             // 判断横向是否相同
-            for (let column = 0; column < boardArray.length; column++) {
+            for (let column = 0; column < 3; column++) {
                 let win = true;
-                for (let row = 0; row < indexColumn.length; row++) {
-                    if (boardArray[column][row] !== nowPicker) {
+                for (let row = 0; row < 3; row++) {
+                    if (boardArray[column * 3 + row] !== nowPicker) {
                         win = false;
                     }
                 }
@@ -80,10 +95,10 @@
         }
         {
             // 判断纵向是否相同
-            for (let column = 0; column < boardArray.length; column++) {
+            for (let column = 0; column < 3; column++) {
                 let win = true;
-                for (let row = 0; row < indexColumn.length; row++) {
-                    if (boardArray[row][column] !== nowPicker) {
+                for (let row = 0; row < 3; row++) {
+                    if (boardArray[row * 3 + column] !== nowPicker) {
                         win = false;
                     }
                 }
@@ -95,8 +110,8 @@
         {
             // 判断左斜向是否相同
             let win = true;
-            for (let column = 0; column < boardArray.length; column++) {
-                if (boardArray[column][column] !== nowPicker) {
+            for (let column = 0; column < 3; column++) {
+                if (boardArray[column * 3 + column] !== nowPicker) {
                     win = false;
                 }
             }
@@ -107,8 +122,8 @@
         {
             // 判断右斜向是否相同
             let win = true;
-            for (let column = 0; column < boardArray.length; column++) {
-                if (boardArray[column][boardArray.length - column - 1] !== nowPicker) {
+            for (let column = 0; column < 3; column++) {
+                if (boardArray[column * 3 + (2 -column)] !== nowPicker) {
                     win = false;
                 }
             }
@@ -122,61 +137,63 @@
 
     // 最优寻路，返回值默认1为赢，2为输，0为和棋
     function findBestWay (boardArray, checkPicker) {
-        let willwinPoint = checkWillWin(boardArray, checkPicker);
-        if (willwinPoint) {
+        let point = null;
+        point = checkWillWin(boardArray, checkPicker);
+        if (point) {
             return {
-                point: willwinPoint,
+                point: point,
                 result: 1 
             }
         }
 
         let result = -2;
-        let point = null;
-        for (let column = 0; column < boardArray.length; column++) {
-            let indexColumn = boardArray[column];
-            for (let row = 0; row < indexColumn.length; row++) {
-                if (boardArray[column][row]) {
+        out:for (let column = 0; column < 3; column++) {
+            for (let row = 0; row < 3; row++) {
+                if (boardArray[column * 3 + row]) {
                     continue;
                 }
                 let cloneborad = clone(boardArray);
-                cloneborad[column][row] = checkPicker;
+                cloneborad[column * 3 + row] = checkPicker;
 
-                let r = findBestWay(cloneborad, 3 - checkPicker).result;
+                let opp = findBestWay(cloneborad, 3 - checkPicker);
 
-                if (-r > result) {
-                    point = [column, row];
-                    result = -r;
+                if (-opp.result >= result) {
+                    point = column * 3 + row;
+                    result = -opp.result;
+                }
+                
+                if (result === 1) {
+                    console.log(cloneborad);
+                    break out;
                 }
             }
         }
 
         return {
             point: point,
-            result: point ? result : 1
+            result: point ? result : 0
         }
     }
 
     function checkWillWin (boardArray, nowPicker) {
-        for (let column = 0; column < boardArray.length; column++) {
-            let indexColumn = boardArray[column];
-            for (let row = 0; row < indexColumn.length; row++) {
-                if (boardArray[column][row]) {
+        for (let column = 0; column < 3; column++) {
+            for (let row = 0; row < 3; row++) {
+                if (boardArray[column * 3 + row]) {
                     continue;
                 }
                 let cloneborad = clone(boardArray);
-                cloneborad[column][row] = nowPicker;
-                if (checkWin(cloneborad)) {
-                    return [column, row];
+                cloneborad[column * 3 + row] = nowPicker;
+                if (checkWin(cloneborad, nowPicker)) {
+                    return column * 3 + row;
                 }
             }
         }
         return null;
     }
 
-    function clone (array) {
-        return JSON.parse(JSON.stringify(array));
+    function clone (boardArray) {
+        return Object.create(boardArray);
     }
 
     show();
-    console.log(findBestWay(boardArray, nowPicker));
 </script>
