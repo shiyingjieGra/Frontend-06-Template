@@ -29,6 +29,7 @@
         0, 0, 0,
         0, 0, 0
     ];
+    let findWayTime = 0;
 
     let nowPicker = 1;
 
@@ -67,7 +68,8 @@
 
     function computerPlay() {
         let result = findBestWay(boardArray, nowPicker);
-        console.log(result);
+        console.log(findWayTime);
+        findWayTime = 0;
         if (result.point) {
             boardArray[result.point] = nowPicker;
         }
@@ -137,6 +139,7 @@
 
     // 最优寻路，返回值默认1为赢，2为输，0为和棋
     function findBestWay (boardArray, checkPicker) {
+        findWayTime++;
         let point = null;
         point = checkWillWin(boardArray, checkPicker);
         if (point) {
@@ -163,7 +166,6 @@
                 }
                 
                 if (result === 1) {
-                    console.log(cloneborad);
                     break out;
                 }
             }

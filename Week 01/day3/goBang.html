@@ -1,0 +1,342 @@
+<style>
+    body {
+        margin: 0;
+        border: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .icon {
+        width: 70px;
+        height: 70px;
+        display: inline-block;
+        border: black 1px solid;
+        background-color: #cfa887;
+        vertical-align: middle;
+
+        line-height: 70px;
+        text-align: center;
+    }
+    .ring {
+        background: url("./ring.png") no-repeat center;
+        background-color: #cfa887;
+    }
+    .cross {
+        background: url("./cross.png") no-repeat center;
+        background-color: #cfa887;
+    }
+</style>
+
+<div id="board"></div>
+
+<script>
+    // 我们将棋盘使用分治法拆分，我们做出10*10的棋盘分成一个个小的5*5棋盘
+    // 棋盘落子规定，-1为白子、1为黑子
+    let boardArray = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    let subBoardArray = [];
+    let wightArray = [];
+    let findWayTime = 0;
+
+    let nowPicker = 1;
+
+    // 将大棋盘切为小棋盘
+    function breakBoard() {
+        for (let column = 0; column < 6; column++) {
+            for (let row = 0; row < 6; row++) {
+                createSubBoard(column, row);
+            }
+        }
+
+        // 计算所有子棋盘权值
+        for (let i = 0; i < subBoardArray.length; i++) {
+            wightArray[i] = cacuSubWeight(subBoardArray[i]);
+        }
+    }
+
+    // 创建小棋盘放入子棋盘数组中
+    function createSubBoard(column, row) {
+        let subBoard = [];
+        for (let boardColumn = 0; boardColumn < 5; boardColumn++) {
+            for (let boardRow = 0; boardRow < 5; boardRow++) {
+                subBoard[boardColumn * 5 + boardRow] = boardArray[(column + boardColumn) * 10 + boardRow + row];
+            }
+        }
+        subBoardArray.push(subBoard);
+    }
+
+    // 计算全局权值
+    function cacuWeight() {
+        // 计算最大/最小权值及位置
+        let nowWeight = [0, 0];
+        for (let j = 0; j < subBoardArray.length; j++) {
+            if (wightArray[j][0] < nowWeight[0]) {
+                nowWeight[0] = wightArray[j][0];
+            } else if (wightArray[j][1] > nowWeight[1]) {
+                nowWeight[1] = wightArray[j][1];
+            }
+        }
+        return nowWeight;
+    }
+
+    // 计算每一个子棋盘权值，我们设定连续相同棋子权值递涨，当遇见其他棋子整行权值设为null，当遇见空格权值重置为0
+    function cacuSubWeight(subBoard) {
+        let maxWeight = 0;
+        let minWeight = 0;
+        {
+            // 获取行最大权值
+            let rowMaxWeight = [];
+            for (let column = 0; column < 5; column++) {
+                rowMaxWeight[column] = 0;
+                let nowWeight = 0;
+                for (let row = 0; row < 5; row++) {
+                    if (subBoard[column * 5 + row] === -nowPicker) {
+                        rowMaxWeight[column] = null;
+                        break;
+                    } else if (subBoard[column * 5 + row] === nowPicker) {
+                        rowMaxWeight[column] += (nowWeight * nowPicker);
+                        nowWeight ++;
+                    }
+                }
+            }
+            maxWeight = Math.max(...rowMaxWeight) > maxWeight ? Math.max(...rowMaxWeight) : maxWeight;
+            minWeight = Math.min(...rowMaxWeight) < minWeight ? Math.min(...rowMaxWeight) : minWeight;
+        }
+        {
+            // 获取列最大权值
+            let rowMaxWeight = [];
+            for (let column = 0; column < 5; column++) {
+                let nowWeight = 0;
+                for (let row = 0; row < 5; row++) {
+                    if (subBoard[row * 5 + column] === -nowPicker) {
+                        rowMaxWeight[column] = null;
+                        break;
+                    } else if (subBoard[row * 5 + column] === nowPicker) {
+                        rowMaxWeight[column] += (nowWeight * nowPicker);
+                        nowWeight ++;
+                    }
+                }
+            }
+            maxWeight = Math.max(...rowMaxWeight) > maxWeight ? Math.max(...rowMaxWeight) : maxWeight;
+            minWeight = Math.min(...rowMaxWeight) < minWeight ? Math.min(...rowMaxWeight) : minWeight;
+        }
+        {
+            // 获取左斜最大权值
+            let rowMaxWeight = [];
+            let nowWeight = 0;
+            for (let column = 0; column < 5; column++) {
+                if (subBoard[column * 5 + column] === -nowPicker) {
+                    rowMaxWeight[column] = null;
+                    break;
+                } else if (subBoard[column * 5 + column] === nowPicker) {
+                    rowMaxWeight[column] += (nowWeight * nowPicker);
+                    nowWeight ++;
+                }
+            }
+            maxWeight = Math.max(...rowMaxWeight) > maxWeight ? Math.max(...rowMaxWeight) : maxWeight;
+            minWeight = Math.min(...rowMaxWeight) < minWeight ? Math.min(...rowMaxWeight) : minWeight;
+        }
+        {
+            // 获取右斜最大权值
+            let rowMaxWeight = [];
+            let nowWeight = 0;
+            for (let column = 0; column < 5; column++) {
+                if (subBoard[column * 5 + (4 -column)] === -nowPicker) {
+                    rowMaxWeight[column] = null;
+                    break;
+                } else if (subBoard[column * 5 + (4 -column)] === nowPicker) {
+                    rowMaxWeight[column] += (nowWeight * nowPicker);
+                    nowWeight ++;
+                }
+            }
+            maxWeight = Math.max(...rowMaxWeight) > maxWeight ? Math.max(...rowMaxWeight) : maxWeight;
+            minWeight = Math.min(...rowMaxWeight) < minWeight ? Math.min(...rowMaxWeight) : minWeight;
+        }
+
+        return [minWeight, maxWeight];
+    }
+
+    function show () {
+        var board = document.getElementById("board");
+        board.innerHTML = "";
+        for (let column = 0; column < 10; column++) {
+            for (let row = 0; row < 10; row++) {
+                var cell = document.createElement("div");
+                cell.classList.add("icon");
+                cell.addEventListener("click", () => play(boardArray, column * 10 + row))
+                boardArray[column * 10 + row] === 1 ? cell.classList.add("cross")
+                 : boardArray[column * 10 + row] === -1 ? cell.classList.add("ring") : undefined;
+                board.appendChild(cell);
+            }
+            board.appendChild(document.createElement("br"));
+        }
+    }
+
+    function play (boardArray, index) {
+        if (boardArray[index]) {
+            return;
+        }
+        boardArray[index] = nowPicker;
+        let weight = cacuWeight();
+        var index = nowPicker ? 1 : 0;
+        if (weight[index] === 10) {
+            alert("the winner is: " + (nowPicker === 1 ? "x" : "o"));
+        }
+        nowPicker = -nowPicker;
+        // if (checkWillWin(boardArray, nowPicker)) {
+        //     console.log((nowPicker === 1 ? "x" : "o") + " will Win");
+        // }
+        show();
+        // computerPlay();
+    }
+
+    function computerPlay() {
+        let result = findBestWay(boardArray, nowPicker, 4);
+        console.log(findWayTime);
+        findWayTime = 0;
+        if (result.point) {
+            boardArray[result.point] = nowPicker;
+        }
+        if (checkWin(boardArray, nowPicker)) {
+            alert("the winner is: " + (nowPicker === 1 ? "x" : "o"));
+        }
+        show();
+        nowPicker = -nowPicker;
+    }
+
+    function checkWin (boardArray, nowPicker) {
+        {
+            // 判断横向是否相同
+            for (let column = 0; column < 5; column++) {
+                let win = true;
+                for (let row = 0; row < 5; row++) {
+                    if (boardArray[column * 5 + row] !== nowPicker) {
+                        win = false;
+                    }
+                }
+                if (win) {
+                    return true;
+                }
+            }
+        }
+        {
+            // 判断纵向是否相同
+            for (let column = 0; column < 5; column++) {
+                let win = true;
+                for (let row = 0; row < 5; row++) {
+                    if (boardArray[row * 5 + column] !== nowPicker) {
+                        win = false;
+                    }
+                }
+                if (win) {
+                    return true;
+                }
+            }
+        }
+        {
+            // 判断左斜向是否相同
+            let win = true;
+            for (let column = 0; column < 5; column++) {
+                if (boardArray[column * 5 + column] !== nowPicker) {
+                    win = false;
+                }
+            }
+            if (win) {
+                return true;
+            }
+        }
+        {
+            // 判断右斜向是否相同
+            let win = true;
+            for (let column = 0; column < 5; column++) {
+                if (boardArray[column * 5 + (4 -column)] !== nowPicker) {
+                    win = false;
+                }
+            }
+            if (win) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // 最优寻路，返回值默认1为赢，2为输，0为和棋
+    function findBestWay (boardArray, checkPicker, deep) {
+        findWayTime++;
+        let point = null;
+        if (deep <= 0) {
+            return {
+                point: null,
+                result: 2
+            }
+        }
+        point = checkWillWin(boardArray, checkPicker);
+        if (point) {
+            return {
+                point: point,
+                result: 1 
+            }
+        }
+
+        let result = -2;
+        out:for (let column = 0; column < 5; column++) {
+            for (let row = 0; row < 5; row++) {
+                if (boardArray[column * 5 + row]) {
+                    continue;
+                }
+                let cloneborad = clone(boardArray);
+                cloneborad[column * 5 + row] = checkPicker;
+
+                let opp = findBestWay(cloneborad, 3 - checkPicker, deep - 1);
+
+                if (-opp.result >= result) {
+                    point = column * 5 + row;
+                    result = -opp.result;
+                }
+                
+                if (result === 1) {
+                    break out;
+                }
+            }
+        }
+
+        return {
+            point: point,
+            result: point ? result : 0
+        }
+    }
+
+    function checkWillWin (boardArray, nowPicker) {
+        for (let column = 0; column < 5; column++) {
+            for (let row = 0; row < 5; row++) {
+                if (boardArray[column * 5 + row]) {
+                    continue;
+                }
+                let cloneborad = clone(boardArray);
+                cloneborad[column * 5 + row] = nowPicker;
+                if (checkWin(cloneborad, nowPicker)) {
+                    return column * 5 + row;
+                }
+            }
+        }
+        return null;
+    }
+
+    function clone (boardArray) {
+        return Object.create(boardArray);
+    }
+
+    breakBoard();
+    show();
+</script>
