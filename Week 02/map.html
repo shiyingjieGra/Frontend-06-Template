@@ -1,0 +1,249 @@
+<html>
+    <head>
+        <style>
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+            .icon {
+                width: 5px;
+                height: 5px;
+                border: 1px white solid;
+            }
+            .base_map {
+                display: flex;
+                flex-wrap: wrap;
+                width: 700px;
+                height: 700px;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <div class="base_map"></div>
+        
+            <button onclick="localStorage['map'] = JSON.stringify(map);">保存</button>
+        </div>
+
+        <script>
+
+            class Sort {
+                constructor(data, compare) {
+                    this.data = data.slice();
+                    this.compare = compare || ((a , b) => a - b);
+                }
+
+                take() {
+                    let min = this.data[0];
+                    let minIndex = 0;
+                    if (!this.data.length) {
+                        return;
+                    }
+
+                    for (let i = 0; i < this.data.length; i ++) {
+                        if (this.compare(this.data[i], min) < 0) {
+                            min = this.data[i];
+                            minIndex = i;
+                        }
+                    }
+
+                    this.data[minIndex] = this.data[this.data.length -1];
+                    this.data.pop();
+                    return min;
+                }
+
+                give(array) {
+                    this.data.push(array);
+                }
+
+                get length() {
+                    return this.data.length;
+                }
+            }
+
+            // 二叉堆
+            class binaryHeap {
+                constructor(data, compare) {
+                    this.data = data.slice();
+                    this.compare = compare || ((a , b) => a - b);
+                }
+
+                // 插入节点
+                insertNode(node) {
+                    // 向末尾叶子节点加入新节点
+                    this.data.push(node);
+                    // 新节点上浮
+                    this.nodeFloatUp(this.data.length - 1);
+                }
+
+                // 取出根节点
+                getRootNode() {
+                    // 获取根节点内容
+                    let rootNode = this.data.shift();
+
+                    if (!this.data.length) {
+                        return rootNode;
+                    }
+
+                    // 根节点下沉
+                    this.rootNodeFloatDown(0);
+                    return rootNode;
+                }
+
+                // 节点上浮
+                nodeFloatUp(index) {
+                    let parentIndex = this.getParentIndex(index);
+                    while (index > 0 && this.compare(this.data[parentIndex], this.data[index]) > 0) {
+                        this.swap(this.data, parentIndex, index);
+                        index = parentIndex;
+                        parentIndex = this.getParentIndex(index);
+                    }
+                }
+
+                // 根节点下沉
+                rootNodeFloatDown(index) {
+                    let leftNode = this.getLeftNodeIndex(index);
+                    let rightNode = this.getRightNodeIndex(index);
+
+                    if (leftNode < this.getSize() && this.compare(this.data[index], this.data[leftNode]) > 0) {
+                        this.swap(this.data, leftNode, index);
+                        this.rootNodeFloatDown(leftNode);
+                    } else if (rightNode < this.getSize() && this.compare(this.data[index], this.data[rightNode]) > 0) {
+                        this.swap(this.data, rightNode, index);
+                        this.rootNodeFloatDown(rightNode);
+                    }
+                }
+
+                getSize() {
+                    return this.data.length - 1;
+                }
+
+                // 获取左节点位置
+                getLeftNodeIndex(index) {
+                    return 2 * index + 1;
+                }
+
+                // 获取右节点位置
+                getRightNodeIndex(index) {
+                    return 2 * index + 2;
+                }
+
+                // 获取父节点位置
+                getParentIndex(index) {
+                    return Math.floor((index - 1) /2);
+                }
+
+                // 交换节点
+                swap(array, index1, index2) {
+                    let tmp = array[index1];
+                    array[index1] = array[index2];
+                    array[index2] = tmp;
+                }
+
+                // 获取二叉树
+                getTree() {
+                    return this.data;
+                }
+
+                get length() {
+                    return this.data.length;
+                }
+            }
+            
+            let mouseDown = false;
+            let rightDown = false;
+            let map = localStorage["map"] ? JSON.parse(localStorage["map"]) : Array(10000).fill(0);
+            let baseMap = document.querySelector(".base_map");
+
+            for (let i = 0; i < 100; i++) {
+                for (let j = 0; j < 100; j++) {
+                    let icon = document.createElement("span");
+                    icon.classList.add("icon");
+                    if (map[100 * i + j] === 1) {
+                        icon.style.background = 'black';
+                    } else {
+                        icon.style.background = 'antiquewhite';
+                    }
+                    icon.addEventListener("mousemove", function(e) {
+                        if (mouseDown) {
+                            if (rightDown) {
+                                map[100 * i + j] = 0;
+                                e.target.style.background = "antiquewhite";
+                            } else {
+                                map[100 * i + j] = 1;
+                                e.target.style.background = "black";
+                            }
+                        }
+                    });
+                    baseMap.appendChild(icon);
+                }
+            }
+
+            document.addEventListener("mousedown", (e) => {
+                mouseDown = true;
+                rightDown = (e.which === 3);
+            });
+            document.addEventListener("mouseup", () => {
+                mouseDown = false;
+                rightDown = false;
+            });
+            document.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+            });
+
+            function sleep(time) {
+                return new Promise((reslove, reject) => {
+                    setTimeout(reslove, time);
+                });
+            }
+
+            async function findPath(map, start, end) {
+                let queue = new binaryHeap([start], (a, b) => distance(a) - distance(b));
+                let pathMap = Object.create(map);
+                let path = [];
+
+                function distance(index) {
+                    return (end[0] - index[0]) ** 2 + (end[1] - index[1]) ** 2;
+                }
+
+                async function insert(x, y, pre) {
+                    if (x >= 100 || y >= 100 || x < 0 || y < 0) {
+                        return;
+                    }
+                    if(pathMap[x * 100 + y]) {
+                        return;
+                    }
+                    baseMap.children[x * 100 + y].style.backgroundColor = "lightGreen";
+                    pathMap[x * 100 + y] = pre;
+                    queue.insertNode([x, y]);
+                }
+
+                while(queue.length) {
+                    let [x, y] = queue.getRootNode();
+
+                    if (x === end[0] && y === end[1]) {
+                        while(start[0] !== x || start[1] !== y) {
+                            baseMap.children[x * 100 + y].style.backgroundColor = "red";
+                            path.push(map[x * 100 + y]);
+                            [x, y] = pathMap[x * 100 + y];
+                            await sleep(20);
+                        }
+                        return path;
+                    }
+
+                    await insert(x, y - 1, [x, y]);
+                    await insert(x - 1, y - 1, [x, y]);
+                    await insert(x - 1, y, [x, y]);
+                    await insert(x - 1, y + 1, [x, y]);
+                    await insert(x, y + 1, [x, y]);
+                    await insert(x + 1, y + 1, [x, y]);
+                    await insert(x + 1, y, [x, y]);
+                    await insert(x + 1, y - 1, [x, y]);
+                }
+            }
+            
+        </script>
+    </body>
+</html>
